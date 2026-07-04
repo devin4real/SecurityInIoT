@@ -68,6 +68,41 @@ router.get(
 );
 
 // =============================================
+// GET /api/devices/:deviceId/status
+// Lấy trạng thái hiện tại của thiết bị (bị hỏng hay bình thường)
+// =============================================
+router.get(
+  '/:deviceId/status',
+  [
+    param('deviceId')
+      .matches(/^[a-zA-Z0-9_]+$/)
+      .withMessage('Device ID không hợp lệ'),
+  ],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ error: 'Validation Error', details: errors.array() });
+    }
+
+    try {
+      const { deviceId } = req.params;
+      const userId = 'user123'; // Map vào user123
+
+      const status = await firebaseService.getDeviceStatus(userId, deviceId);
+
+      res.json({
+        success: true,
+        deviceId,
+        status,
+      });
+    } catch (error) {
+      console.error('❌ Error fetching device status:', error);
+      res.status(500).json({ error: 'Internal Server Error' });
+    }
+  }
+);
+
+// =============================================
 // POST /api/devices/:deviceId/command
 // Gửi lệnh bật/tắt thiết bị
 // Bảo mật: Auth + Validation + Rate Limit + Nonce + Audit Log
@@ -105,6 +140,9 @@ router.post(
 
       // Publish lệnh qua MQTT (kèm timestamp + nonce)
       mqttService.publishCommand(userId, deviceId, cmd, nonce);
+
+      // Cập nhật lại trạng thái thiết bị thành bình thường khi có lệnh gửi
+      await firebaseService.updateDeviceStatus(userId, deviceId, { state: 'normal', isOn: cmd === 'on' });
 
       res.json({
         success: true,

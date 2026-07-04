@@ -15,7 +15,7 @@ let mqttClient = null;
  */
 function connect() {
   const brokerUrl = process.env.MQTT_BROKER_URL;
-  
+
   const options = {
     username: process.env.MQTT_USERNAME,
     password: process.env.MQTT_PASSWORD,
@@ -24,21 +24,23 @@ function connect() {
     rejectUnauthorized: false,
     reconnectPeriod: 5000,
     connectTimeout: 30000,
-    clientId: `backend-server-${Date.now()}`,
+    // Sử dụng clientId cố định để khi start instance mới, instance cũ bị đá ra
+    // Tránh tình trạng 2 backend cùng chạy và nhận cùng 1 tin nhắn
+    clientId: 'backend-server-primary',
   };
 
   mqttClient = mqtt.connect(brokerUrl, options);
 
   mqttClient.on('connect', () => {
     console.log('✅ Connected to MQTT Broker (TLS)');
-    
+
     // Subscribe topic CỤ THỂ của user (không dùng wildcard toàn cục)
     // Vì broker.emqx.io là public broker, dùng +/+/energy sẽ nhận rác từ người khác
     // Cấu trúc: user123/{deviceId}/{action}
     mqttClient.subscribe('user123/+/energy', { qos: 1 }, (err) => {
       if (!err) console.log('📊 Subscribed to user123/+/energy (QoS 1)');
     });
-    
+
     mqttClient.subscribe('user123/+/alarm', { qos: 1 }, (err) => {
       if (!err) console.log('🚨 Subscribed to user123/+/alarm (QoS 1)');
     });
@@ -72,7 +74,7 @@ function connect() {
 
         await firebaseService.saveEnergyData(userId, deviceId, payload);
         console.log(`📊 Energy saved: ${userId}/${deviceId} → ${payload.energy} kWh`);
-        
+
       } else if (action === 'alarm') {
         // Validate alarm data
         if (!payload.alert || typeof payload.power !== 'number') {
@@ -81,17 +83,37 @@ function connect() {
         }
 
         const { isDuplicate } = await firebaseService.saveAlarmData(userId, deviceId, payload);
-        
+
         if (!isDuplicate) {
           console.log(`🚨 ALARM saved: ${userId}/${deviceId} → ${payload.alert} (${payload.power}W)`);
-          // Ghi vào overloadHistory — lưu lịch sử vượt POWER LIMIT
-          await firebaseService.writeOverloadHistory({
-            action: 'OVERLOAD_DETECTED',
-            userId,
-            deviceId,
-            alert: payload.alert,
-            power: payload.power,
-          });
+          
+          // Cập nhật trạng thái thiết bị thành Bị hỏng
+          await firebaseService.updateDeviceStatus(userId, deviceId, { state: 'broken', isOn: false });
+
+          // Lấy Push Token và gửi thông báo đẩy
+          const pushToken = await firebaseService.getPushToken(userId);
+          if (pushToken) {
+            try {
+              await fetch('https://exp.host/--/api/v2/push/send', {
+                method: 'POST',
+                headers: {
+                  Accept: 'application/json',
+                  'Accept-encoding': 'gzip, deflate',
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  to: pushToken,
+                  sound: 'default',
+                  title: '🚨 CẢNH BÁO NGUY HIỂM!',
+                  body: `Thiết bị đang quá tải (${payload.power} W). Vui lòng kiểm tra ngay!`,
+                  data: { deviceId, power: payload.power },
+                }),
+              });
+              console.log(`📲 Push notification sent to ${pushToken}`);
+            } catch (pushErr) {
+              console.error('❌ Failed to send push notification:', pushErr);
+            }
+          }
         }
 
         // TỰ ĐỘNG ACK: Ngay khi nhận được cảnh báo đầu tiên, 

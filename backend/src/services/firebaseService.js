@@ -73,27 +73,14 @@ async function saveAlarmData(userId, deviceId, data) {
 
   try {
     const ref = db.ref(`users/${userId}/devices/${deviceId}/alarms`);
-    
-    // Lấy cảnh báo gần nhất
-    const snapshot = await ref.orderByKey().limitToLast(1).once('value');
-    if (snapshot.exists()) {
-      const latestKey = Object.keys(snapshot.val())[0];
-      const latestAlarm = snapshot.val()[latestKey];
-      
-      // Nếu cảnh báo gần nhất CHƯA được acknowledge (xác nhận) 
-      // và có cùng loại (alert) -> Không tạo thêm bản ghi mới để tránh rác DB
-      if (latestAlarm.acknowledged === false && latestAlarm.alert === data.alert) {
-        return { key: latestKey, isDuplicate: true };
-      }
-    }
 
-    // Nếu không có trùng lặp, tạo cảnh báo mới
+    // Tạo cảnh báo mới
     const newEntry = ref.push();
     await newEntry.set({
       alert: data.alert,
       power: data.power,
       time: data.time || new Date().toISOString(),
-      acknowledged: false,
+      acknowledged: true, // Tự động ACK vì đã bỏ tính năng popup
       receivedAt: admin.database.ServerValue.TIMESTAMP,
     });
     return { key: newEntry.key, isDuplicate: false };
@@ -165,12 +152,46 @@ async function getOverloadHistory(limit = 50) {
 }
 
 // =============================================
+// PUSH NOTIFICATIONS
+// =============================================
+
+async function savePushToken(userId, pushToken) {
+  const ref = db.ref(`users/${userId}/pushToken`);
+  await ref.set(pushToken);
+}
+
+async function getPushToken(userId) {
+  const snapshot = await db.ref(`users/${userId}/pushToken`).once('value');
+  return snapshot.val();
+}
+
+// =============================================
 // AUTH - Verify Firebase ID Token
 // Mobile App gửi ID Token → Backend verify bằng Admin SDK
 // =============================================
 
 async function verifyIdToken(idToken) {
   return await auth.verifyIdToken(idToken);
+}
+
+// =============================================
+// DEVICE STATUS
+// =============================================
+
+async function updateDeviceStatus(userId, deviceId, statusObj) {
+  const ref = db.ref(`users/${userId}/devices/${deviceId}/status`);
+  await ref.update({
+    ...statusObj,
+    updatedAt: admin.database.ServerValue.TIMESTAMP,
+  });
+}
+
+async function getDeviceStatus(userId, deviceId) {
+  const snapshot = await db.ref(`users/${userId}/devices/${deviceId}/status`).once('value');
+  if (snapshot.exists()) {
+    return snapshot.val();
+  }
+  return { state: 'normal', isOn: true };
 }
 
 module.exports = {
@@ -182,5 +203,9 @@ module.exports = {
   acknowledgeAlarm,
   writeOverloadHistory,
   getOverloadHistory,
+  savePushToken,
+  getPushToken,
   verifyIdToken,
+  updateDeviceStatus,
+  getDeviceStatus,
 };

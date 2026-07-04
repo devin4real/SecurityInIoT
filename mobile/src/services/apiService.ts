@@ -9,7 +9,7 @@ import { auth } from '../config/firebaseConfig';
 // Backend URL — thay đổi khi deploy lên cloud
 // const API_BASE_URL = 'http://10.0.2.2:3000/api'; // Android emulator
 // const API_BASE_URL = 'http://localhost:3000/api'; // iOS simulator
-const API_BASE_URL = 'http://10.136.13.200:3000/api'; // Physical device trên LAN
+const API_BASE_URL = 'http://192.168.1.200:3000/api'; // Physical device trên LAN
 
 /**
  * Lấy Firebase ID Token hiện tại của user đã đăng nhập
@@ -64,6 +64,13 @@ export async function getEnergyData(deviceId: string) {
 }
 
 /**
+ * Lấy trạng thái của thiết bị (status & isOn)
+ */
+export async function getDeviceStatus(deviceId: string) {
+  return apiRequest(`/devices/${deviceId}/status`);
+}
+
+/**
  * Gửi lệnh bật/tắt thiết bị
  * Backend sẽ: validate input → tạo nonce → publish MQTT → log audit
  */
@@ -105,6 +112,16 @@ export async function getOverloadHistory(limit: number = 50) {
   return apiRequest(`/devices/overload-history?limit=${limit}`);
 }
 
+/**
+ * Gửi Push Token lên Backend để nhận thông báo
+ */
+export async function savePushToken(pushToken: string) {
+  return apiRequest('/auth/push-token', {
+    method: 'POST',
+    body: JSON.stringify({ pushToken }),
+  });
+}
+
 export default {
   getEnergyData,
   sendCommand,
@@ -112,4 +129,6 @@ export default {
   acknowledgeAlarm,
   healthCheck,
   getOverloadHistory,
+  savePushToken,
+  getDeviceStatus,
 };

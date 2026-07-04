@@ -20,6 +20,12 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "3782ea8a-4338-4715-840b-3aafbeaca656"
+      }
+    },
+    "owner": "devin4real"
   }
 }

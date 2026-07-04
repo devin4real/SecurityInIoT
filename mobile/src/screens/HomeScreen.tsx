@@ -16,7 +16,8 @@ import CustomButton from '../components/CustomButton';
 import LineChart from '../components/LineChart';
 import { useAuth } from '../context/AuthContext';
 // Gọi API qua Backend thay vì Firebase trực tiếp (Bảo mật)
-import { getEnergyData, sendCommand } from '../services/apiService';
+import { getEnergyData, sendCommand, savePushToken, getDeviceStatus } from '../services/apiService';
+import { registerForPushNotificationsAsync } from '../services/notificationService';
 import { colors, typography, spacing, borderRadius, shadows } from '../theme/theme';
 
 const { width } = Dimensions.get('window');
@@ -42,16 +43,35 @@ const HomeScreen: React.FC = () => {
 
   // Device control
   const [deviceOn, setDeviceOn] = useState(true);
+  const [deviceStatus, setDeviceStatus] = useState('normal');
   const [sendingCommand, setSendingCommand] = useState(false);
 
+  // Setup Push Notifications
+  useEffect(() => {
+    async function setupNotifications() {
+      try {
+        const token = await registerForPushNotificationsAsync();
+        if (token) {
+          await savePushToken(token);
+          console.log('✅ Đã lưu Push Token lên Backend thành công');
+        }
+      } catch (err) {
+        console.error('❌ Lỗi khi thiết lập Push Notifications:', err);
+      }
+    }
+    setupNotifications();
+  }, []);
 
-
-  // Lấy dữ liệu energy từ Backend API (không phải Firebase trực tiếp)
-  const fetchEnergyData = useCallback(async () => {
+  // Lấy dữ liệu từ Backend API
+  const fetchDeviceData = useCallback(async () => {
     try {
-      const response = await getEnergyData(DEVICE_ID);
-      if (response.success && response.data) {
-        const values = response.data
+      const [energyRes, statusRes] = await Promise.all([
+        getEnergyData(DEVICE_ID).catch(() => ({ success: false })),
+        getDeviceStatus(DEVICE_ID).catch(() => ({ success: false }))
+      ]);
+
+      if (energyRes.success && energyRes.data) {
+        const values = energyRes.data
           .filter((item: any) => item && typeof item.energy === 'number')
           .map((item: any) => item.energy);
         setEnergyData(values);
@@ -60,8 +80,13 @@ const HomeScreen: React.FC = () => {
         setEnergyData([]);
         setDataError('Chưa có dữ liệu energy');
       }
+
+      if (statusRes.success && statusRes.status) {
+        setDeviceStatus(statusRes.status.state);
+        setDeviceOn(statusRes.status.isOn);
+      }
     } catch (error: any) {
-      console.error('API Error (energy):', error);
+      console.error('API Error:', error);
       setDataError(error.message || 'Lỗi kết nối Backend');
     } finally {
       setDataLoading(false);
@@ -70,15 +95,15 @@ const HomeScreen: React.FC = () => {
 
   // Lấy danh sách cảnh báo
   useEffect(() => {
-    fetchEnergyData();
-  }, [fetchEnergyData]);
+    fetchDeviceData();
+  }, [fetchDeviceData]);
 
   // Pull to refresh
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await fetchEnergyData();
+    await fetchDeviceData();
     setRefreshing(false);
-  }, [fetchEnergyData]);
+  }, [fetchDeviceData]);
 
   // Gửi lệnh bật/tắt qua Backend API → Backend publish MQTT → ESP32
   const handleToggleDevice = async () => {
@@ -98,6 +123,7 @@ const HomeScreen: React.FC = () => {
               const response = await sendCommand(DEVICE_ID, newState as 'on' | 'off');
               if (response.success) {
                 setDeviceOn(!deviceOn);
+                setDeviceStatus('normal');
                 Alert.alert('Thành công', response.message);
               }
             } catch (error: any) {
@@ -196,8 +222,8 @@ const HomeScreen: React.FC = () => {
             <Text style={styles.controlCardDeviceId}>{DEVICE_ID}</Text>
           </View>
           <View style={styles.controlCardBody}>
-            <Text style={styles.controlCardStatus}>
-              Trạng thái: {deviceOn ? '🟢 Đang bật' : '🔴 Đã tắt'}
+            <Text style={[styles.controlCardStatus, deviceStatus === 'broken' && { color: colors.error, fontWeight: 'bold' }]}>
+              Trạng thái: {deviceStatus === 'broken' ? '🔴 Bị hỏng' : (deviceOn ? '🟢 Đang bật' : '⚫️ Đã tắt')}
             </Text>
             <TouchableOpacity
               style={[
