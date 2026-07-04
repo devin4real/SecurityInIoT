@@ -10,8 +10,10 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { getOverloadHistory } from '../services/apiService';
+import { getAlarms } from '../services/apiService';
 import { colors, typography, spacing, borderRadius, shadows } from '../theme/theme';
+
+const DEVICE_ID = 'esp32_01'; // ID thiết bị ESP32
 
 interface OverloadEvent {
   id: string;
@@ -19,6 +21,7 @@ interface OverloadEvent {
   power: number;
   time: string;
   timestamp: number;
+  receivedAt?: number;
 }
 
 const AlertsScreen: React.FC = () => {
@@ -30,9 +33,10 @@ const AlertsScreen: React.FC = () => {
   const fetchData = async () => {
     try {
       setError(null);
-      const res = await getOverloadHistory(50);
+      const res = await getAlarms(DEVICE_ID);
       if (res.success && res.data) {
-        setHistory(res.data);
+        // Đảo ngược mảng để sự cố mới nhất lên đầu
+        setHistory([...res.data].reverse());
       } else {
         setHistory([]);
       }
@@ -71,7 +75,7 @@ const AlertsScreen: React.FC = () => {
         </View>
         <View style={styles.cardTitleContainer}>
           <Text style={styles.cardTitle}>Vượt công suất</Text>
-          <Text style={styles.cardSubtitle}>{formatTime(item.time, item.timestamp)}</Text>
+          <Text style={styles.cardSubtitle}>{formatTime(item.time, item.receivedAt || item.timestamp)}</Text>
         </View>
       </View>
       
