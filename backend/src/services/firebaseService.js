@@ -54,35 +54,53 @@ async function getEnergyData(userId, deviceId, limit = 50) {
   return data;
 }
 
+// In-memory lock để chống Race Condition khi nhận nhiều request cùng lúc
+const processingAlarms = new Set();
+
 /**
- * Lưu alarm data (Có cơ chế chống duplicate/flooding)
+ * Lưu alarm data (Có cơ chế chống duplicate/flooding và Race Condition)
  */
 async function saveAlarmData(userId, deviceId, data) {
-  const ref = db.ref(`users/${userId}/devices/${deviceId}/alarms`);
+  const lockKey = `${userId}_${deviceId}_${data.alert}`;
   
-  // Lấy cảnh báo gần nhất
-  const snapshot = await ref.orderByKey().limitToLast(1).once('value');
-  if (snapshot.exists()) {
-    const latestKey = Object.keys(snapshot.val())[0];
-    const latestAlarm = snapshot.val()[latestKey];
-    
-    // Nếu cảnh báo gần nhất CHƯA được acknowledge (xác nhận) 
-    // và có cùng loại (alert) -> Không tạo thêm bản ghi mới để tránh rác DB
-    if (latestAlarm.acknowledged === false && latestAlarm.alert === data.alert) {
-      return { key: latestKey, isDuplicate: true };
-    }
+  // Nếu đang xử lý cảnh báo này rồi thì bỏ qua luôn (chống concurrent requests)
+  if (processingAlarms.has(lockKey)) {
+    return { key: null, isDuplicate: true };
   }
+  
+  // Đặt lock
+  processingAlarms.add(lockKey);
 
-  // Nếu không có trùng lặp, tạo cảnh báo mới
-  const newEntry = ref.push();
-  await newEntry.set({
-    alert: data.alert,
-    power: data.power,
-    time: data.time || new Date().toISOString(),
-    acknowledged: false,
-    receivedAt: admin.database.ServerValue.TIMESTAMP,
-  });
-  return { key: newEntry.key, isDuplicate: false };
+  try {
+    const ref = db.ref(`users/${userId}/devices/${deviceId}/alarms`);
+    
+    // Lấy cảnh báo gần nhất
+    const snapshot = await ref.orderByKey().limitToLast(1).once('value');
+    if (snapshot.exists()) {
+      const latestKey = Object.keys(snapshot.val())[0];
+      const latestAlarm = snapshot.val()[latestKey];
+      
+      // Nếu cảnh báo gần nhất CHƯA được acknowledge (xác nhận) 
+      // và có cùng loại (alert) -> Không tạo thêm bản ghi mới để tránh rác DB
+      if (latestAlarm.acknowledged === false && latestAlarm.alert === data.alert) {
+        return { key: latestKey, isDuplicate: true };
+      }
+    }
+
+    // Nếu không có trùng lặp, tạo cảnh báo mới
+    const newEntry = ref.push();
+    await newEntry.set({
+      alert: data.alert,
+      power: data.power,
+      time: data.time || new Date().toISOString(),
+      acknowledged: false,
+      receivedAt: admin.database.ServerValue.TIMESTAMP,
+    });
+    return { key: newEntry.key, isDuplicate: false };
+  } finally {
+    // Luôn giải phóng lock dù thành công hay thất bại
+    processingAlarms.delete(lockKey);
+  }
 }
 
 /**
@@ -126,6 +144,26 @@ async function writeOverloadHistory(logEntry) {
   });
 }
 
+/**
+ * Lấy lịch sử thiết bị vượt POWER LIMIT
+ * Sắp xếp theo timestamp giảm dần (mới nhất lên đầu)
+ */
+async function getOverloadHistory(limit = 50) {
+  const ref = db.ref('overloadHistory');
+  const snapshot = await ref.orderByChild('timestamp').limitToLast(limit).once('value');
+  
+  const data = [];
+  snapshot.forEach((childSnapshot) => {
+    data.push({
+      id: childSnapshot.key,
+      ...childSnapshot.val(),
+    });
+  });
+  
+  // Firebase trả về tăng dần, nên reverse để mới nhất lên đầu
+  return data.reverse();
+}
+
 // =============================================
 // AUTH - Verify Firebase ID Token
 // Mobile App gửi ID Token → Backend verify bằng Admin SDK
@@ -143,5 +181,6 @@ module.exports = {
   getAlarms,
   acknowledgeAlarm,
   writeOverloadHistory,
+  getOverloadHistory,
   verifyIdToken,
 };

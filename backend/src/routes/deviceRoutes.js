@@ -200,5 +200,25 @@ router.post(
     }
   }
 );
+// =============================================
+// GET /api/devices/overload-history
+// Lấy lịch sử thiết bị vượt POWER LIMIT
+// Bảo mật: Auth
+// =============================================
+router.get('/overload-history', async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 50;
+    const data = await firebaseService.getOverloadHistory(limit);
+
+    res.json({
+      success: true,
+      count: data.length,
+      data,
+    });
+  } catch (error) {
+    console.error('❌ Error fetching overload history:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
 
 module.exports = router;

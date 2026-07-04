@@ -13,6 +13,8 @@ import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 import HomeScreen from '../screens/HomeScreen';
+import AlertsScreen from '../screens/AlertsScreen';
+import ProfileScreen from '../screens/ProfileScreen';
 
 // Stack & Tab types
 export type AuthStackParamList = {
@@ -23,9 +25,8 @@ export type AuthStackParamList = {
 
 export type MainTabParamList = {
   Home: undefined;
-  // Thêm các tab khác ở đây sau này, ví dụ:
-  // Settings: undefined;
-  // Profile: undefined;
+  Alerts: undefined;
+  Profile: undefined;
 };
 
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
@@ -75,17 +76,26 @@ const MainNavigator = () => (
         ),
       }}
     />
-    {/* Thêm các tab khác ở đây sau này, ví dụ: */}
-    {/* <MainTab.Screen
-      name="Settings"
-      component={SettingsScreen}
+    <MainTab.Screen
+      name="Alerts"
+      component={AlertsScreen}
       options={{
-        tabBarLabel: 'Cài đặt',
+        tabBarLabel: 'Sự cố',
         tabBarIcon: ({ color, size }) => (
-          <Ionicons name="settings" size={size} color={color} />
+          <Ionicons name="notifications" size={size} color={color} />
         ),
       }}
-    /> */}
+    />
+    <MainTab.Screen
+      name="Profile"
+      component={ProfileScreen}
+      options={{
+        tabBarLabel: 'Hồ sơ',
+        tabBarIcon: ({ color, size }) => (
+          <Ionicons name="person" size={size} color={color} />
+        ),
+      }}
+    />
   </MainTab.Navigator>
 );
 
