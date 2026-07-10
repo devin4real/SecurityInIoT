@@ -9,7 +9,7 @@ import { auth } from '../config/firebaseConfig';
 // Backend URL — thay đổi khi deploy lên cloud
 // const API_BASE_URL = 'http://10.0.2.2:3000/api'; // Android emulator
 // const API_BASE_URL = 'http://localhost:3000/api'; // iOS simulator
-const API_BASE_URL = 'http://192.168.1.200:3000/api'; // Physical device trên LAN
+const API_BASE_URL = 'http://172.20.10.6:3000/api'; // Physical device trên LAN
 
 /**
  * Lấy Firebase ID Token hiện tại của user đã đăng nhập

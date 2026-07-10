@@ -275,45 +275,7 @@ const HomeScreen: React.FC = () => {
 
 
 
-        {/* Account Info */}
-        <Text style={[styles.sectionTitle, { marginTop: spacing.lg }]}>Thông tin tài khoản</Text>
-        {[
-          {
-            icon: 'shield-checkmark-outline' as const,
-            title: 'Xác thực',
-            value: 'Firebase Auth + JWT',
-            gradient: ['#2ED573', '#1DB954'] as const,
-          },
-          {
-            icon: 'lock-closed-outline' as const,
-            title: 'Mã hóa',
-            value: 'TLS/SSL (MQTTS)',
-            gradient: ['#667EEA', '#764BA2'] as const,
-          },
-          {
-            icon: 'finger-print-outline' as const,
-            title: 'UID',
-            value: user?.uid?.substring(0, 16) + '...' || 'N/A',
-            gradient: ['#FF6B6B', '#FF8E8E'] as const,
-          },
-        ].map((card, index) => (
-          <View key={index} style={styles.statCard}>
-            <LinearGradient
-              colors={[...card.gradient]}
-              style={styles.statIconWrapper}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-            >
-              <Ionicons name={card.icon} size={22} color={colors.white} />
-            </LinearGradient>
-            <View style={styles.statContent}>
-              <Text style={styles.statTitle}>{card.title}</Text>
-              <Text style={styles.statValue} numberOfLines={1}>
-                {card.value}
-              </Text>
-            </View>
-          </View>
-        ))}
+
 
         {/* Logout */}
         <CustomButton
