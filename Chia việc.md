@@ -8,8 +8,8 @@
 
 | Thành viên | Vai trò chính | Phân hệ phụ trách |
 | :---: | :--- | :--- |
-| **Dương** | Lập trình viên Nhúng (Embedded Developer) | ESP32 Firmware + Phần cứng |
-| **Tú** | Lập trình viên Backend — Dịch vụ (Backend Services Developer) | Backend: Server Core + MQTT Bridge + Firebase |
+| **Tú** | Lập trình viên Nhúng (Embedded Developer) | ESP32 Firmware + Phần cứng |
+| **Dương** | Lập trình viên Backend — Dịch vụ (Backend Services Developer) | Backend: Server Core + MQTT Bridge + Firebase |
 | **Vũ** | Lập trình viên Backend — API & Bảo mật (Backend Security Developer) | Backend: API Routes + Security Middleware |
 | **Thành** | Lập trình viên Mobile (Mobile Developer) | Mobile App (React Native / Expo) |
 
@@ -17,7 +17,7 @@
 
 ## Chi tiết công việc từng người
 
-### 👤 Thành viên Dương — Lập trình nhúng ESP32 + Phần cứng
+### 👤 Thành viên Tú — Lập trình nhúng ESP32 + Phần cứng
 
 | Hạng mục | Chi tiết |
 | :--- | :--- |
@@ -38,7 +38,7 @@
 
 ---
 
-### 👤 Thành viên Tú — Backend: Server Core + Dịch vụ MQTT + Firebase
+### 👤 Thành viên Dương — Backend: Server Core + Dịch vụ MQTT + Firebase
 
 | Hạng mục | Chi tiết |
 | :--- | :--- |
