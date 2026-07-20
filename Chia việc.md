@@ -148,7 +148,7 @@
 
 ## Bảng tổng hợp phân chia
 
-| | **Dương** (Embedded) | **Tú** (Backend Services) | **Vũ** (Backend Security) | **Thành** (Mobile App) |
+| | **Tú** (Embedded) | **Dương** (Backend Services) | **Vũ** (Backend Security) | **Thành** (Mobile App) |
 | :--- | :--- | :--- | :--- | :--- |
 | **File chính** | `sketch_jun18a.ino` | `server.js`, `mqttService.js`, `firebaseService.js` | `deviceRoutes.js`, `authRoutes.js`, `authMiddleware.js`, `rateLimiter.js`, `auditLogger.js` | `AuthContext.tsx`, `apiService.ts`, `notificationService.ts`, 6 Screens, Navigation, Theme |
 | **Ngôn ngữ** | C++ (Arduino) | JavaScript (Node.js) | JavaScript (Node.js) | TypeScript (React Native) |
