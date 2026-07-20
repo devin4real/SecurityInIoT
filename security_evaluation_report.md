@@ -41,7 +41,7 @@ Dự án đã thể hiện rõ tư duy phân lớp bảo mật này qua việc m
 
 ---
 
-## 2. Nguyên tắc AAA (Authentication, Authorization, Accounting)
+## 2. Nguyên tắc AAA (Authentication, Authorization)
 
 **Khái niệm từ bài giảng:**
 Mọi thực thể (người dùng, thiết bị) tham gia hệ thống IoT đều phải trải qua ba bước kiểm soát: **Authentication** (Bạn là ai?), **Authorization** (Bạn được phép làm gì?), và **Accounting** (Ghi nhận lại bạn đã làm gì?).
@@ -94,21 +94,6 @@ if (!validPattern.test(userId) || !validPattern.test(deviceId)) {
 }
 ```
 Hệ thống phân quyền theo cấu trúc Topic phân cấp (`user123/esp32_01/command`), kết hợp Input Validation ở mọi API endpoint để ngăn chặn Command Injection và Topic Injection.
-
-### 2.3. Accounting (Lưu vết kiểm toán)
-```javascript
-// auditLogger.js — Ghi lại hành động nhạy cảm
-const logEntry = {
-  action: action,
-  userId: req.user?.uid || 'anonymous',
-  email: req.user?.email || 'unknown',
-  ip: req.ip || req.connection?.remoteAddress,
-  userAgent: req.headers['user-agent'],
-  body: sanitizeBody(req.body), // Lọc bỏ các trường nhạy cảm trước khi ghi
-};
-await firebaseService.writeOverloadHistory(logEntry);
-```
-Mọi thao tác quan trọng (gửi lệnh điều khiển, sự kiện quá tải) đều được ghi nhận với đầy đủ thông tin: ai thực hiện (`userId`, `email`), từ đâu (`IP`, `User-Agent`), lúc nào (`timestamp`). Đặc biệt, hàm `sanitizeBody()` tự động loại bỏ các trường nhạy cảm (`password`, `token`, `secret`, `key`) trước khi ghi vào log, tuân thủ nguyên tắc bảo mật dữ liệu nhạy cảm ngay cả trong hệ thống nội bộ.
 
 ---
 
