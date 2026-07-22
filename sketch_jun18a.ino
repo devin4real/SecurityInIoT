@@ -7,11 +7,11 @@
 
 // --- HARDWARE CONFIGURATION ---
 #define RELAY_PIN 25
-PZEM004Tv30 pzem(&Serial1, 26, 27);
+PZEM004Tv30 pzem(&Serial1, 26, 27); //Tx - RX from PZEM
 
 // --- WIFI CONFIGURATION ---
-const char* ssid = "26 Kim Ma";
-const char* password = "12341234";
+const char* ssid = "Devin";
+const char* password = "12349876";
 
 // --- MQTT SECURE CONFIGURATION ---
 const char* mqttServer = "broker.emqx.io"; 
@@ -77,10 +77,14 @@ String getCurrentTimeStr() {
 
 void setupWifi() {
   delay(10);
+  Serial.print("\nConnecting to ");
+  Serial.println(ssid);
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
+    Serial.print(".");
   }
+  Serial.println("\nWiFi connected!");
   
   // Bỏ qua kiểm tra chứng chỉ (Chỉ dùng cho testing. Thực tế cần cung cấp Root CA của EMQX)
   espClient.setInsecure(); 
@@ -107,40 +111,58 @@ void callback(char* topic, byte* payload, unsigned int length) {
       if (currentUnix > 0 && abs((long)(currentUnix - msgTimestamp)) <= 60) {
         if (cmd == "on") {
           digitalWrite(RELAY_PIN, HIGH);
+          Serial.println("-> Device Turned ON");
         } else if (cmd == "off") {
           digitalWrite(RELAY_PIN, LOW);
+          Serial.println("-> Device Turned OFF");
         }
+      } else {
+        Serial.println("!!! Replay Attack Detected or Time Expired! Command dropped.");
       }
     }
   } 
   else if (String(topic) == alarmAckTopic) {
     // Nhận được phản hồi ACK từ ứng dụng -> Ngừng gửi cảnh báo lại
     isAlarmActive = false;
+    Serial.println("Alarm ACK received from App. Stopped resending.");
   }
 }
 
 void reconnect() {
   while (!client.connected()) {
+    Serial.print("Attempting MQTT connection...");
     String clientId = "ESP32Client-";
     clientId += String(random(0xffff), HEX);
     
     // 2. XÁC THỰC BẰNG USERNAME VÀ PASSWORD
     if (client.connect(clientId.c_str(), mqttUser, mqttPass)) {
+      Serial.println("Connected to Secure MQTT!");
       client.subscribe(commandTopic);
       client.subscribe(alarmAckTopic); // Lắng nghe phản hồi ACK
     } else {
+      Serial.print("Failed, rc=");
+      Serial.print(client.state());
       delay(5000);
     }
   }
 }
 
 void setup() {
+  Serial.begin(115200);
   pinMode(RELAY_PIN, OUTPUT);
   digitalWrite(RELAY_PIN, HIGH); 
   
   setupWifi();
   
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+  // Thêm vòng lặp đợi đồng bộ thời gian (Đợi đến khi năm hiện tại > 1970)
+  Serial.print("Waiting for NTP time sync");
+  struct tm timeinfo;
+  while (!getLocalTime(&timeinfo)) {
+    Serial.print(".");
+    delay(1000);
+  }
+  Serial.println("\nTime Synced!");
   
   client.setServer(mqttServer, mqttPort);
   client.setCallback(callback);
@@ -158,7 +180,8 @@ void loop() {
   if (currentMillis - previousProtectionMillis >= protectionInterval) {
     previousProtectionMillis = currentMillis;
     
-    currentPower = pzem.power();
+    currentPower = pzem.power(); Serial.print("Power: "); Serial.println(currentPower);
+    float currentI = pzem.current();Serial.print("Current: "); Serial.println(currentI);
     currentEnergy = pzem.energy();
     
     if (!isnan(currentPower) && !isnan(currentEnergy)) {
@@ -183,6 +206,7 @@ void loop() {
   if (isAlarmActive && (currentMillis - lastAlarmSentMillis >= 2000)) {
     client.publish(alarmTopic, currentAlarmPayload.c_str());
     lastAlarmSentMillis = currentMillis;
+    Serial.println("Resending Alarm Payload (Waiting for ACK)...");
   }
 
   // --- TASK 2: PUBLISH DATA ---
@@ -208,6 +232,7 @@ void loop() {
       if (timeinfo.tm_mday == 1 && timeinfo.tm_mon != lastResetMonth) {
         pzem.resetEnergy();
         lastResetMonth = timeinfo.tm_mon; 
+        Serial.println("--- 1st day of the month! Energy counter reset. ---");
       } 
       else if (timeinfo.tm_mday > 1 && timeinfo.tm_mon != lastResetMonth) {
         lastResetMonth = timeinfo.tm_mon;
